@@ -1,0 +1,32 @@
+# \u8BBE\u7F6E\u6FC0\u6D3B\u7684\u73AF\u5883
+spring:
+  profiles:
+    active: 'dev'
+  mvc:
+    view:
+      prefix: '/templates/'
+      suffix: '.ftl'
+  freemarker:
+    cache: false
+    request-context-attribute: 'request'
+mybatis:
+  type-aliases-package: 'com.table.dao.entity'
+  mapper-locations: 'classpath:mapper/*.xml'
+mapper:
+  mappers: com.table.util.MyMapper
+  not-empty: false
+  identity: 'MYSQL'
+pagehelper:
+  helper-dialect: 'mysql'
+  reasonable: 'true'
+  support-methods-arguments: 'true'
+  params: 'count'
+shiro:
+  loginUrl: '/login.html'
+  successUrl: '/'
+  unauthorizedUrl: 'null'
+  sessionManager:
+    sessionIdCookieEnabled: 'true'
+    sessionIdUrlRewritingEnabled: 'true'
+
+
