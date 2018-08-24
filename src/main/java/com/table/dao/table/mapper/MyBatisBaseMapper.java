@@ -1,4 +1,4 @@
-package com.table.mapper;
+package com.table.dao.table.mapper;
 
 import org.apache.ibatis.annotations.Param;
 
