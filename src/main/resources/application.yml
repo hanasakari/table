@@ -9,9 +9,19 @@ spring:
   freemarker:
     cache: false
     request-context-attribute: 'request'
-mybatis:
-  type-aliases-package: 'com.table.dao.entity'
-  mapper-locations: 'classpath:dao/*.xml'
+  redis:
+    database: 0
+    host: 127.0.0.1
+    port: 6379
+    password: ''
+    pool:
+      max-wait: -1
+      max-idle: -1
+      min-idle: -1
+    timeout: 5000
+#mybatis:
+#  type-aliases-package: 'com.table.dao.table.entity'
+#  mapper-locations: 'classpath:com/table/dao/table/*.xml'
 mapper:
   mappers: com.table.util.MyMapper
   not-empty: false
@@ -21,6 +31,25 @@ pagehelper:
   reasonable: 'true'
   support-methods-arguments: 'true'
   params: 'count'
+  ###################################
+  ############# REDIS
+  ###################################
+#  # Redis数据库索引
+#  spring.redis.database=0
+#  # Redis服务器地址
+#  spring.redis.host=127.0.0.1
+#  # Redis服务器连接端口
+#  spring.redis.port=6379
+#  # Redis服务器连接密码
+#  spring.redis.password=redis
+#  # 连接池最大阻塞等待时间
+#  spring.redis.pool.max-wait=-1
+#  # 连接池中的最大空闲连接
+#  spring.redis.pool.max-idle=-1
+#  # 连接池中的最小空闲连接
+#  spring.redis.pool.min-idle=-1
+#  # 连接超时时间
+#  spring.redis.timeout=5000
 ##shiro:
 #  loginUrl: '/login.html'
 #  successUrl: '/'

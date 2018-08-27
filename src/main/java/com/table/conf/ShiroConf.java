@@ -108,7 +108,7 @@ public class ShiroConf {
      * ShirpFilterFactoryBean, 生成ShiroFilter
      * securityManager,filters,filterChainDefinitionManager
      */
-    @Bean(name = "shiroFilter")
+    @Bean
     public ShiroFilterFactoryBean shiroFilterFactoryBean(){
         ShiroFilterFactoryBean shiroFilterFactoryBean = new ShiroFilterFactoryBean();
         shiroFilterFactoryBean.setSecurityManager(securityManager());
