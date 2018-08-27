@@ -20,8 +20,8 @@ spring:
       min-idle: -1
     timeout: 5000
 #mybatis:
-#  type-aliases-package: 'com.table.dao.table.entity'
-#  mapper-locations: 'classpath:com/table/dao/table/*.xml'
+  type-aliases-package: 'com.table.dao.table.entity'
+  mapper-locations: 'classpath:com/table/dao/table/*.xml'
 mapper:
   mappers: com.table.util.MyMapper
   not-empty: false

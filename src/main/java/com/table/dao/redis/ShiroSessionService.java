@@ -160,7 +160,7 @@ public class ShiroSessionService  extends CachingSessionDAO {
             jedis = jedisPool.getResource();
             //session由Redis缓存失效决定，这里作简单标识
             session.setTimeout(expireTime);
-            jedis.setex(prefix + sessionId, expireTime, SerializeUtils.serializaToString((ShiroSession) session));
+                jedis.setex(prefix + sessionId, expireTime, SerializeUtils.serializaToString((ShiroSession) session));
             logger.info("sessionId {} name {} 被创建", sessionId, session.getClass().getName());
         }catch (Exception e){
             logger.warn("创建session失败",e);
