@@ -27,6 +27,7 @@ import java.util.Set;
  * 通过配置securityManager在属性cacheManager从缓存中查找Session是否存在，如果找不到再调用方法
  * Shiro内部相应的组件(DefaultSecurityManager)会自动检测相应的对象(Realm)是否实现了CacheManagerAware并注入相应的CacheManager
  */
+@Service
 public class ShiroSessionService  extends CachingSessionDAO {
     private static final Logger logger = LoggerFactory.getLogger(ShiroSessionService.class);
 

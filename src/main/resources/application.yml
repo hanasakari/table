@@ -21,12 +21,12 @@ pagehelper:
   reasonable: 'true'
   support-methods-arguments: 'true'
   params: 'count'
-shiro:
-  loginUrl: '/login.html'
-  successUrl: '/'
-  unauthorizedUrl: 'null'
-  sessionManager:
-    sessionIdCookieEnabled: 'true'
-    sessionIdUrlRewritingEnabled: 'true'
-
+##shiro:
+#  loginUrl: '/login.html'
+#  successUrl: '/'
+#  unauthorizedUrl: 'null'
+#  sessionManager:
+#    sessionIdCookieEnabled: 'true'
+#    sessionIdUrlRewritingEnabled: 'true'
+#
 

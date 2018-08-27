@@ -1,8 +1,6 @@
 package com.table.util.exception;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.zhuxs.result.domain.enums.ErrorCode;
-
 /**
  * Created by shusesshou on 2017/9/18.
  */

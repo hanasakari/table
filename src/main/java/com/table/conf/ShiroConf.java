@@ -1,5 +1,7 @@
 package com.table.conf;
 
+import com.table.core.shiro.ShiroRealm;
+import com.table.dao.redis.ShiroSessionService;
 import org.apache.shiro.authc.credential.HashedCredentialsMatcher;
 import org.apache.shiro.spring.LifecycleBeanPostProcessor;
 import org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor;
@@ -11,13 +13,15 @@ import org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreato
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.apache.shiro.mgt.SecurityManager;
 import org.springframework.context.annotation.DependsOn;
 
 import javax.servlet.Filter;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * Created by shusesshou on 2017/9/20.
+ */
 @Configuration
 public class ShiroConf {
     /**
@@ -42,6 +46,14 @@ public class ShiroConf {
         return credentialsMatcher;
     }
 
+
+//    //注入自定义的realm，告诉shiro如何获取用户信息来做登录或权限控制
+//    @Bean
+//    public Realm realm() {
+//        return new ShiroRealm();
+//    }
+
+
     /**
      * ShiroRealm, 自定义的认证类
      */
@@ -55,8 +67,8 @@ public class ShiroConf {
      * CachingShiroSessionDao
      */
     @Bean(name = "shiroSessionDao")
-    public ShiroSessionDao shiroSessionDao(){
-        return new ShiroSessionDao();
+    public ShiroSessionService ShiroSessionService(){
+        return new ShiroSessionService();
     }
     /**
      * EhCacheManager,缓存管理，用户登陆成功后，把用户信息和权限信息缓存起来
@@ -71,9 +83,9 @@ public class ShiroConf {
         DefaultWebSessionManager manager = new DefaultWebSessionManager();
         //manager.setCacheManager(cacheManager);// 加入缓存管理器
         manager.setSessionFactory(shiroSessionFactory());//设置sessionFactory
-        manager.setSessionDAO(shiroSessionDao());// 设置SessionDao
+        manager.setSessionDAO(ShiroSessionService());// 设置SessionDao
         manager.setDeleteInvalidSessions(true);// 删除过期的session
-        manager.setGlobalSessionTimeout(shiroSessionDao().getExpireTime());// 设置全局session超时时间
+        manager.setGlobalSessionTimeout(ShiroSessionService().getExpireTime());// 设置全局session超时时间
         manager.setSessionValidationSchedulerEnabled(true);// 是否定时检查session
         return manager;
     }
