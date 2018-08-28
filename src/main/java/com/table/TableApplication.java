@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 
 @SpringBootApplication
-@ComponentScan(basePackages = {"com.table.conf","com.table.root"})
+@ComponentScan(basePackages = {"com.table.conf","com.table.root","com.table.util","com.table.core"})
 @MapperScan(basePackages = {"com.table.dao"})
 public class TableApplication {
     public static void main(String[] args) {
