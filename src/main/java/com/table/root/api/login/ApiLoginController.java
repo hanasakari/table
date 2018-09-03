@@ -2,7 +2,11 @@ package com.table.root.api.login;
 
 import com.google.common.collect.Maps;
 import com.table.core.oauth2.OAuthService;
+import com.table.dao.table.entity.TbOauth2Client;
+import com.table.dao.table.entity.TbOauth2ClientExample;
+import com.table.dao.table.mapper.TbOauth2ClientMapper;
 import com.table.util.DaoStic;
+import com.table.util.IdGeneratorUtil;
 import org.apache.oltu.oauth2.as.issuer.MD5Generator;
 import org.apache.oltu.oauth2.as.issuer.OAuthIssuer;
 import org.apache.oltu.oauth2.as.issuer.OAuthIssuerImpl;
@@ -41,9 +45,21 @@ public class ApiLoginController {
     ApiLoginService apiLoginService;
     @Autowired
     OAuthService oAuthService;
-
+    @Autowired
+    ApiLoginService apiLoginService;
+    @Autowired
+    IdGeneratorUtil idGeneratorUtil;
+    @RequestMapping(value = "createToken.json",method = RequestMethod.POST)
+    public ResponseEntity createToken(@RequestParam("appId")String appId){
+        Map<String,Object> rtn = Maps.newHashMap();
+        if (apiLoginService.checkAtouhName(appId)) {
+            TbOauth2Client tbOauth2Client = new TbOauth2Client();
+            tbOauth2Client.setTbOauth2Id(idGeneratorUtil.UUIDGenerator());
+        }
+        return new ResponseEntity<>(rtn,HttpStatus.OK);
+    }
     @RequestMapping(value = "signIn.json", method = RequestMethod.GET)
-    public ResponseEntity signIn(HttpServletRequest request) {
+    public ResponseEntity signIn(HttpServletRequest request) throws OAuthSystemException {
         //获取oauthRequest
         try {
             OAuthTokenRequest oauthRequest = new OAuthTokenRequest(request);
@@ -62,7 +78,7 @@ public class ApiLoginController {
                         .setError(OAuthError.TokenResponse.UNAUTHORIZED_CLIENT)
                         .setErrorDescription("客户端验证失败，如错误的client_id/client_secret")
                         .buildJSONMessage();
-                return new ResponseEntity(response.getBody(), HttpStatus.valueOf(response.getResponseStatus()));
+                return new ResponseEntity<>(response.getBody(), HttpStatus.valueOf(response.getResponseStatus()));
             }
             String authCode = oauthRequest.getParam(OAuth.OAUTH_CODE);
 
@@ -73,7 +89,7 @@ public class ApiLoginController {
                             .setError(OAuthError.TokenResponse.INVALID_GRANT)
                             .setErrorDescription("error grant code")
                             .buildJSONMessage();
-                    return new ResponseEntity(response.getBody(),HttpStatus.valueOf(response.getResponseStatus()));
+                    return new ResponseEntity<>(response.getBody(),HttpStatus.valueOf(response.getResponseStatus()));
                 }
             }
 
@@ -87,25 +103,25 @@ public class ApiLoginController {
                     .setAccessToken(accessToken).setExpiresIn(String.valueOf(oAuthService.getExpireIn()))
                     .buildJSONMessage();
 
-            return new ResponseEntity(response.getBody(),HttpStatus.valueOf(response.getResponseStatus()));
-        } catch (OAuthSystemException | OAuthProblemException e) {
+            return new ResponseEntity<>(response.getBody(),HttpStatus.valueOf(response.getResponseStatus()));
+        } catch (OAuthProblemException e) {
             e.printStackTrace();
             OAuthResponse res = OAuthASResponse.errorResponse(HttpServletResponse.SC_BAD_REQUEST).error(e).buildBodyMessage();
-            return new ResponseEntity(res.getBody(),HttpStatus.valueOf(res.getResponseStatus()));
+            return new ResponseEntity<>(res.getBody(),HttpStatus.valueOf(res.getResponseStatus()));
         }
-        Subject subject = SecurityUtils.getSubject();
+//        Subject subject = SecurityUtils.getSubject();
 //        UsernamePasswordToken token = new UsernamePasswordToken(loginName, password);
-        Map<String, Object> rtn = Maps.newHashMap();
-        try {
+//        Map<String, Object> rtn = Maps.newHashMap();
+//        try {
 //            subject.login(token);
 //            rtn.put("loginName", loginName);
-            rtn.put("session", subject.getSession());
-        } catch (AuthenticationException e) {
+//            rtn.put("session", subject.getSession());
+//        } catch (AuthenticationException e) {
 //            logger.error("登陆错误,Id:" + loginName);
 //            rtn.put("loginName", loginName);
-            rtn.put("session", false);
-        }
-        return new ResponseEntity<>(rtn, HttpStatus.OK);
+//            rtn.put("session", false);
+//        }
+//        return new ResponseEntity<>(rtn, HttpStatus.OK);
     }
 
     @RequestMapping("signUp.json")
