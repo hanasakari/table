@@ -14,8 +14,6 @@ public class TbOauth2ClientExample {
 
     private Long offset;
 
-    private Boolean forUpdate;
-
     public TbOauth2ClientExample() {
         oredCriteria = new ArrayList<Criteria>();
     }
@@ -83,14 +81,6 @@ public class TbOauth2ClientExample {
 
     public Long getOffset() {
         return offset;
-    }
-
-    public void setForUpdate(Boolean forUpdate) {
-        this.forUpdate = forUpdate;
-    }
-
-    public Boolean getForUpdate() {
-        return forUpdate;
     }
 
     protected abstract static class GeneratedCriteria {

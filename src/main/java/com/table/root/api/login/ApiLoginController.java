@@ -46,16 +46,10 @@ public class ApiLoginController {
     @Autowired
     OAuthService oAuthService;
     @Autowired
-    ApiLoginService apiLoginService;
-    @Autowired
     IdGeneratorUtil idGeneratorUtil;
     @RequestMapping(value = "createToken.json",method = RequestMethod.POST)
     public ResponseEntity createToken(@RequestParam("appId")String appId){
-        Map<String,Object> rtn = Maps.newHashMap();
-        if (apiLoginService.checkAtouhName(appId)) {
-            TbOauth2Client tbOauth2Client = new TbOauth2Client();
-            tbOauth2Client.setTbOauth2Id(idGeneratorUtil.UUIDGenerator());
-        }
+        Map<String,Object> rtn = apiLoginService.createToken(appId);
         return new ResponseEntity<>(rtn,HttpStatus.OK);
     }
     @RequestMapping(value = "signIn.json", method = RequestMethod.GET)
