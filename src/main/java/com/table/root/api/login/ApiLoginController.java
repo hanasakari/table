@@ -1,30 +1,25 @@
 package com.table.root.api.login;
 
-import com.google.common.collect.Maps;
 import com.table.core.oauth2.OAuthService;
-import com.table.dao.table.entity.TbOauth2Client;
-import com.table.dao.table.entity.TbOauth2ClientExample;
-import com.table.dao.table.mapper.TbOauth2ClientMapper;
 import com.table.util.DaoStic;
 import com.table.util.IdGeneratorUtil;
 import org.apache.oltu.oauth2.as.issuer.MD5Generator;
-import org.apache.oltu.oauth2.as.issuer.OAuthIssuer;
 import org.apache.oltu.oauth2.as.issuer.OAuthIssuerImpl;
-import org.apache.oltu.oauth2.as.request.OAuthTokenRequest;
+import org.apache.oltu.oauth2.as.request.OAuthAuthzRequest;
 import org.apache.oltu.oauth2.as.response.OAuthASResponse;
 import org.apache.oltu.oauth2.common.OAuth;
 import org.apache.oltu.oauth2.common.error.OAuthError;
 import org.apache.oltu.oauth2.common.exception.OAuthProblemException;
 import org.apache.oltu.oauth2.common.exception.OAuthSystemException;
 import org.apache.oltu.oauth2.common.message.OAuthResponse;
-import org.apache.oltu.oauth2.common.message.types.GrantType;
+import org.apache.oltu.oauth2.common.message.types.ResponseType;
+import org.apache.oltu.oauth2.common.utils.OAuthUtils;
 import org.apache.shiro.SecurityUtils;
-import org.apache.shiro.authc.AuthenticationException;
-import org.apache.shiro.authc.UsernamePasswordToken;
 import org.apache.shiro.subject.Subject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,6 +29,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Map;
 
 @RestController
@@ -47,75 +44,86 @@ public class ApiLoginController {
     OAuthService oAuthService;
     @Autowired
     IdGeneratorUtil idGeneratorUtil;
-    @RequestMapping(value = "createToken.json",method = RequestMethod.POST)
-    public ResponseEntity createToken(@RequestParam("appId")String appId){
-        Map<String,Object> rtn = apiLoginService.createToken(appId);
-        return new ResponseEntity<>(rtn,HttpStatus.OK);
+
+    @RequestMapping(value = "createToken.json", method = RequestMethod.POST)
+    public ResponseEntity createToken(@RequestParam("appId") String appId) {
+        Map<String, Object> rtn = apiLoginService.createToken(appId);
+        return new ResponseEntity<>(rtn, HttpStatus.OK);
     }
-    @RequestMapping(value = "signIn.json", method = RequestMethod.GET)
-    public ResponseEntity signIn(HttpServletRequest request) throws OAuthSystemException {
-        //获取oauthRequest
+
+    @RequestMapping(value = "authorize.json", method = RequestMethod.GET)
+    public ResponseEntity authorize(HttpServletRequest request) throws OAuthSystemException, URISyntaxException {
         try {
-            OAuthTokenRequest oauthRequest = new OAuthTokenRequest(request);
+            //构建OAuth 授权请求
+            OAuthAuthzRequest oauthRequest = new OAuthAuthzRequest(request);
+            //检查传入的客户端id是否正确
             if (!oAuthService.checkClientId(oauthRequest.getClientId())) {
-                OAuthResponse response =
-                        OAuthASResponse.errorResponse(HttpServletResponse.SC_BAD_REQUEST)
-                                .setError(OAuthError.TokenResponse.INVALID_CLIENT)
-                                .setErrorDescription(DaoStic.INVALID_CLIENT_DESCRIPTION)
-                                .buildJSONMessage();
-                return new ResponseEntity<>(response.getBody(), HttpStatus.valueOf(response.getResponseStatus()));
-            }
-
-            // 检查客户端安全Key是否正确
-            if(!oAuthService.checkClientSecret(oauthRequest.getClientSecret())){
-                OAuthResponse response = OAuthASResponse.errorResponse(HttpServletResponse.SC_UNAUTHORIZED)
-                        .setError(OAuthError.TokenResponse.UNAUTHORIZED_CLIENT)
-                        .setErrorDescription("客户端验证失败，如错误的client_id/client_secret")
+                OAuthResponse response = OAuthASResponse
+                        .errorResponse(HttpServletResponse.SC_BAD_REQUEST)
+                        .setError(OAuthError.TokenResponse.INVALID_CLIENT)
+                        .setErrorDescription(DaoStic.INVALID_CLIENT_DESCRIPTION)
                         .buildJSONMessage();
-                return new ResponseEntity<>(response.getBody(), HttpStatus.valueOf(response.getResponseStatus()));
+                return new ResponseEntity<>(
+                        response.getBody(), HttpStatus.valueOf(response.getResponseStatus()));
             }
-            String authCode = oauthRequest.getParam(OAuth.OAUTH_CODE);
 
-            // 检查验证类型，此处只检查AUTHORIZATION类型，其他的还有PASSWORD或者REFRESH_TOKEN
-            if(oauthRequest.getParam(OAuth.OAUTH_GRANT_TYPE).equals(GrantType.AUTHORIZATION_CODE.toString())){
-                if(!oAuthService.checkAuthCode(authCode)){
-                    OAuthResponse response = OAuthASResponse.errorResponse(HttpServletResponse.SC_BAD_REQUEST)
-                            .setError(OAuthError.TokenResponse.INVALID_GRANT)
-                            .setErrorDescription("error grant code")
-                            .buildJSONMessage();
-                    return new ResponseEntity<>(response.getBody(),HttpStatus.valueOf(response.getResponseStatus()));
+            Subject subject = SecurityUtils.getSubject();
+            //如果用户没有登录，跳转到登陆页面
+            if(!subject.isAuthenticated()) {
+                String loginName = request.getParameter("login_name");
+                String password = request.getParameter("password");
+                Map<String,Object> login = apiLoginService.login(loginName, password);
+                if (login.get("code").equals(500)){
+                    return new ResponseEntity<>(login,HttpStatus.NOT_FOUND);
                 }
             }
 
-            //生成Access Token
-            OAuthIssuer issuer = new OAuthIssuerImpl(new MD5Generator());
-            final String accessToken  = issuer.accessToken();
-            oAuthService.addAccessToken(accessToken, oAuthService.getUsernameByAuthCode(authCode));
+            String username = (String)subject.getPrincipal();
+            //生成授权码
+            String authorizationCode = null;
+            //responseType目前仅支持CODE，另外还有TOKEN
+            String responseType = oauthRequest.getParam(OAuth.OAUTH_RESPONSE_TYPE);
+            if (responseType.equals(ResponseType.CODE.toString())) {
+                OAuthIssuerImpl oauthIssuerImpl = new OAuthIssuerImpl(new MD5Generator());
+                authorizationCode = oauthIssuerImpl.authorizationCode();
+                oAuthService.addAuthCode(authorizationCode, username);
+            }
+            //进行OAuth响应构建
+            OAuthASResponse.OAuthAuthorizationResponseBuilder builder =
+                    OAuthASResponse.authorizationResponse(request,
+                            HttpServletResponse.SC_FOUND);
+            //设置授权码
+            builder.setCode(authorizationCode);
+            //得到到客户端重定向地址
+            String redirectURI = oauthRequest.getParam(OAuth.OAUTH_REDIRECT_URI);
 
-            // 生成OAuth响应
-            OAuthResponse response = OAuthASResponse.tokenResponse(HttpServletResponse.SC_OK)
-                    .setAccessToken(accessToken).setExpiresIn(String.valueOf(oAuthService.getExpireIn()))
-                    .buildJSONMessage();
-
-            return new ResponseEntity<>(response.getBody(),HttpStatus.valueOf(response.getResponseStatus()));
+            //构建响应
+            final OAuthResponse response = builder.location(redirectURI).buildQueryMessage();
+            //根据OAuthResponse返回ResponseEntity响应
+            HttpHeaders headers = new HttpHeaders();
+            headers.setLocation(new URI(response.getLocationUri()));
+            return new ResponseEntity(headers, HttpStatus.valueOf(response.getResponseStatus()));
         } catch (OAuthProblemException e) {
-            e.printStackTrace();
-            OAuthResponse res = OAuthASResponse.errorResponse(HttpServletResponse.SC_BAD_REQUEST).error(e).buildBodyMessage();
-            return new ResponseEntity<>(res.getBody(),HttpStatus.valueOf(res.getResponseStatus()));
+            //出错处理
+            String redirectUri = e.getRedirectUri();
+            if (OAuthUtils.isEmpty(redirectUri)) {
+                //告诉客户端没有传入redirectUri直接报错
+                return new ResponseEntity<>(
+                        "OAuth callback url needs to be provided by client!!!", HttpStatus.NOT_FOUND);
+            }
+            //返回错误消息（如?error=）
+            final OAuthResponse response =
+                    OAuthASResponse.errorResponse(HttpServletResponse.SC_FOUND)
+                            .error(e).location(redirectUri).buildQueryMessage();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setLocation(new URI(response.getLocationUri()));
+            return new ResponseEntity(headers, HttpStatus.valueOf(response.getResponseStatus()));
         }
-//        Subject subject = SecurityUtils.getSubject();
-//        UsernamePasswordToken token = new UsernamePasswordToken(loginName, password);
-//        Map<String, Object> rtn = Maps.newHashMap();
-//        try {
-//            subject.login(token);
-//            rtn.put("loginName", loginName);
-//            rtn.put("session", subject.getSession());
-//        } catch (AuthenticationException e) {
-//            logger.error("登陆错误,Id:" + loginName);
-//            rtn.put("loginName", loginName);
-//            rtn.put("session", false);
-//        }
-//        return new ResponseEntity<>(rtn, HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "signIn.json", method = RequestMethod.GET)
+    public ResponseEntity signIn(@RequestParam String loginName,@RequestParam String password) {
+        return new ResponseEntity<>(apiLoginService.login(loginName, password), HttpStatus.OK);
     }
 
     @RequestMapping("signUp.json")

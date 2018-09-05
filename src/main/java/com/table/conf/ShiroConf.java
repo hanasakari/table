@@ -115,13 +115,16 @@ public class ShiroConf {
 
         Map<String, Filter> filters = new LinkedHashMap<String,Filter>();
         LogoutFilter logoutFilter = new LogoutFilter();
-        logoutFilter.setRedirectUrl("/login");
+        //登出
+        logoutFilter.setRedirectUrl("/loginOut");
         shiroFilterFactoryBean.setFilters(filters);
-        shiroFilterFactoryBean.setLoginUrl("/notAuthc");
+        //如果没登陆的话过滤页
+        shiroFilterFactoryBean.setLoginUrl("/login/authorize.json");
 
         Map<String,String> filterChainDefinitionManager = new LinkedHashMap<String,String>();
         filterChainDefinitionManager.put("/logout","logout");
-        filterChainDefinitionManager.put("/userInfo","authc");
+        filterChainDefinitionManager.put("/login/**","anon");
+        filterChainDefinitionManager.put("/user/**","authc");
         filterChainDefinitionManager.put("/jobs/**","perms[WORDCOUNT:CREATE]");
         filterChainDefinitionManager.put("/admin/**","roles[Admin]");
         shiroFilterFactoryBean.setFilterChainDefinitionMap(filterChainDefinitionManager);
