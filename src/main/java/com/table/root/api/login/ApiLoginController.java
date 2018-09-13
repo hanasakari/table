@@ -4,6 +4,7 @@ import com.table.core.oauth2.OAuthService;
 import com.table.util.DaoStic;
 import com.table.util.IdGeneratorUtil;
 import org.apache.oltu.oauth2.as.issuer.MD5Generator;
+import org.apache.oltu.oauth2.as.issuer.OAuthIssuer;
 import org.apache.oltu.oauth2.as.issuer.OAuthIssuerImpl;
 import org.apache.oltu.oauth2.as.request.OAuthAuthzRequest;
 import org.apache.oltu.oauth2.as.response.OAuthASResponse;
@@ -12,6 +13,7 @@ import org.apache.oltu.oauth2.common.error.OAuthError;
 import org.apache.oltu.oauth2.common.exception.OAuthProblemException;
 import org.apache.oltu.oauth2.common.exception.OAuthSystemException;
 import org.apache.oltu.oauth2.common.message.OAuthResponse;
+import org.apache.oltu.oauth2.common.message.types.GrantType;
 import org.apache.oltu.oauth2.common.message.types.ResponseType;
 import org.apache.oltu.oauth2.common.utils.OAuthUtils;
 import org.apache.shiro.SecurityUtils;
@@ -36,7 +38,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/login")
 public class ApiLoginController {
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
+//    private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
     ApiLoginService apiLoginService;
@@ -89,18 +91,43 @@ public class ApiLoginController {
                 oAuthService.addAuthCode(authorizationCode, username);
             }
             //进行OAuth响应构建
-            OAuthASResponse.OAuthAuthorizationResponseBuilder builder =
-                    OAuthASResponse.authorizationResponse(request,
-                            HttpServletResponse.SC_FOUND);
+//            OAuthASResponse.OAuthAuthorizationResponseBuilder builder =
+//                    OAuthASResponse.authorizationResponse(request,
+//                            HttpServletResponse.SC_FOUND);
             //设置授权码
-            builder.setCode(authorizationCode);
+//            builder.setCode(authorizationCode);
             //得到到客户端重定向地址
-            String redirectURI = oauthRequest.getParam(OAuth.OAUTH_REDIRECT_URI);
+//            String redirectURI = oauthRequest.getParam(OAuth.OAUTH_REDIRECT_URI);
 
             //构建响应
-            final OAuthResponse response = builder.location(redirectURI).buildQueryMessage();
+//            final OAuthResponse response = builder.location(redirectURI).buildQueryMessage();
+//            String authCode = oauthRequest.getParam(OAuth.OAUTH_CODE);
+            String authCode = authorizationCode;
+
+            // 检查验证类型，此处只检查AUTHORIZATION类型，其他的还有PASSWORD或者REFRESH_TOKEN
+            if(oauthRequest.getParam(OAuth.OAUTH_GRANT_TYPE).equals(GrantType.AUTHORIZATION_CODE.toString())){
+                if(!oAuthService.checkAuthCode(authCode)){
+                    OAuthResponse response = OAuthASResponse.errorResponse(HttpServletResponse.SC_BAD_REQUEST)
+                            .setError(OAuthError.TokenResponse.INVALID_GRANT)
+                            .setErrorDescription("error grant code")
+                            .buildJSONMessage();
+                    return new ResponseEntity<>(response.getBody(),HttpStatus.valueOf(response.getResponseStatus()));
+                }
+            }
+
+            //生成Access Token
+            OAuthIssuer issuer = new OAuthIssuerImpl(new MD5Generator());
+            final String accessToken  = issuer.accessToken();
+            oAuthService.addAccessToken(accessToken, oAuthService.getUsernameByAuthCode(authCode));
+
+            // 生成OAuth响应
+            OAuthResponse response = OAuthASResponse.tokenResponse(HttpServletResponse.SC_OK)
+                    .setAccessToken(accessToken).setExpiresIn(String.valueOf(oAuthService.getExpireIn()))
+                    .buildJSONMessage();
+
+//            return new ResponseEntity(response.getBody(),HttpStatus.valueOf(response.getResponseStatus()));
             //根据OAuthResponse返回ResponseEntity响应
-            HttpHeaders headers = new HttpHeaders();
+            HttpHeaders headers =   new HttpHeaders();
             headers.setLocation(new URI(response.getLocationUri()));
             return new ResponseEntity(headers, HttpStatus.valueOf(response.getResponseStatus()));
         } catch (OAuthProblemException e) {
