@@ -4,7 +4,6 @@ import com.table.core.oauth2.OAuthService;
 import com.table.util.DaoStic;
 import com.table.util.IdGeneratorUtil;
 import org.apache.oltu.oauth2.as.issuer.MD5Generator;
-import org.apache.oltu.oauth2.as.issuer.OAuthIssuer;
 import org.apache.oltu.oauth2.as.issuer.OAuthIssuerImpl;
 import org.apache.oltu.oauth2.as.request.OAuthAuthzRequest;
 import org.apache.oltu.oauth2.as.response.OAuthASResponse;
@@ -13,7 +12,6 @@ import org.apache.oltu.oauth2.common.error.OAuthError;
 import org.apache.oltu.oauth2.common.exception.OAuthProblemException;
 import org.apache.oltu.oauth2.common.exception.OAuthSystemException;
 import org.apache.oltu.oauth2.common.message.OAuthResponse;
-import org.apache.oltu.oauth2.common.message.types.GrantType;
 import org.apache.oltu.oauth2.common.message.types.ResponseType;
 import org.apache.oltu.oauth2.common.utils.OAuthUtils;
 import org.apache.shiro.SecurityUtils;
@@ -24,10 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -38,7 +33,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/login")
 public class ApiLoginController {
-//    private Logger logger = LoggerFactory.getLogger(this.getClass());
+    private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
     ApiLoginService apiLoginService;
@@ -71,16 +66,16 @@ public class ApiLoginController {
 
             Subject subject = SecurityUtils.getSubject();
             //如果用户没有登录，跳转到登陆页面
-            if(!subject.isAuthenticated()) {
+            if (!subject.isAuthenticated()) {
                 String loginName = request.getParameter("login_name");
                 String password = request.getParameter("password");
-                Map<String,Object> login = apiLoginService.login(loginName, password);
-                if (login.get("code").equals(500)){
-                    return new ResponseEntity<>(login,HttpStatus.NOT_FOUND);
+                Map<String, Object> login = apiLoginService.login(loginName, password);
+                if (login.get("code").equals(500)) {
+                    return new ResponseEntity<>(login, HttpStatus.NOT_FOUND);
                 }
             }
 
-            String username = (String)subject.getPrincipal();
+            String username = (String) subject.getPrincipal();
             //生成授权码
             String authorizationCode = null;
             //responseType目前仅支持CODE，另外还有TOKEN
@@ -91,43 +86,18 @@ public class ApiLoginController {
                 oAuthService.addAuthCode(authorizationCode, username);
             }
             //进行OAuth响应构建
-//            OAuthASResponse.OAuthAuthorizationResponseBuilder builder =
-//                    OAuthASResponse.authorizationResponse(request,
-//                            HttpServletResponse.SC_FOUND);
+            OAuthASResponse.OAuthAuthorizationResponseBuilder builder =
+                    OAuthASResponse.authorizationResponse(request,
+                            HttpServletResponse.SC_FOUND);
             //设置授权码
-//            builder.setCode(authorizationCode);
+            builder.setCode(authorizationCode);
             //得到到客户端重定向地址
-//            String redirectURI = oauthRequest.getParam(OAuth.OAUTH_REDIRECT_URI);
+            String redirectURI = oauthRequest.getParam(OAuth.OAUTH_REDIRECT_URI);
 
             //构建响应
-//            final OAuthResponse response = builder.location(redirectURI).buildQueryMessage();
-//            String authCode = oauthRequest.getParam(OAuth.OAUTH_CODE);
-            String authCode = authorizationCode;
-
-            // 检查验证类型，此处只检查AUTHORIZATION类型，其他的还有PASSWORD或者REFRESH_TOKEN
-            if(oauthRequest.getParam(OAuth.OAUTH_GRANT_TYPE).equals(GrantType.AUTHORIZATION_CODE.toString())){
-                if(!oAuthService.checkAuthCode(authCode)){
-                    OAuthResponse response = OAuthASResponse.errorResponse(HttpServletResponse.SC_BAD_REQUEST)
-                            .setError(OAuthError.TokenResponse.INVALID_GRANT)
-                            .setErrorDescription("error grant code")
-                            .buildJSONMessage();
-                    return new ResponseEntity<>(response.getBody(),HttpStatus.valueOf(response.getResponseStatus()));
-                }
-            }
-
-            //生成Access Token
-            OAuthIssuer issuer = new OAuthIssuerImpl(new MD5Generator());
-            final String accessToken  = issuer.accessToken();
-            oAuthService.addAccessToken(accessToken, oAuthService.getUsernameByAuthCode(authCode));
-
-            // 生成OAuth响应
-            OAuthResponse response = OAuthASResponse.tokenResponse(HttpServletResponse.SC_OK)
-                    .setAccessToken(accessToken).setExpiresIn(String.valueOf(oAuthService.getExpireIn()))
-                    .buildJSONMessage();
-
-//            return new ResponseEntity(response.getBody(),HttpStatus.valueOf(response.getResponseStatus()));
+            final OAuthResponse response = builder.location(redirectURI).buildQueryMessage();
             //根据OAuthResponse返回ResponseEntity响应
-            HttpHeaders headers =   new HttpHeaders();
+            HttpHeaders headers = new HttpHeaders();
             headers.setLocation(new URI(response.getLocationUri()));
             return new ResponseEntity(headers, HttpStatus.valueOf(response.getResponseStatus()));
         } catch (OAuthProblemException e) {
@@ -147,9 +117,26 @@ public class ApiLoginController {
             return new ResponseEntity(headers, HttpStatus.valueOf(response.getResponseStatus()));
         }
     }
+    //将code替换成token
+    @RequestMapping(value = "codeToToken.json", method = RequestMethod.GET)
+    public ResponseEntity codeToToken(@RequestParam String code) {
+        OAuthResponse response = null;
+
+        if (!oAuthService.checkAuthCode(code)) {
+            try {
+                response = OAuthASResponse.errorResponse(HttpServletResponse.SC_BAD_REQUEST)
+                        .setError(OAuthError.TokenResponse.INVALID_GRANT)
+                        .setErrorDescription("error grant code")
+                        .buildJSONMessage();
+            } catch (OAuthSystemException e) {
+                e.printStackTrace();
+            }
+        }
+        return new ResponseEntity<>(response != null ? response.getBody() : null, HttpStatus.valueOf(response != null ? response.getResponseStatus() : 0));
+    }
 
     @RequestMapping(value = "signIn.json", method = RequestMethod.GET)
-    public ResponseEntity signIn(@RequestParam String loginName,@RequestParam String password) {
+    public ResponseEntity signIn(@RequestParam String loginName, @RequestParam String password) {
         return new ResponseEntity<>(apiLoginService.login(loginName, password), HttpStatus.OK);
     }
 

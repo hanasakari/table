@@ -123,6 +123,7 @@ public class RedisUtil {
         Object result = null;
         ValueOperations<Serializable, Object> operations = redisTemplate.opsForValue();
         result = operations.get(key);
+        System.out.println(result);
         if(StringUtils.isEmpty( result )) {
             throw new Exception( "缓存读取失败。。。" );
         }
