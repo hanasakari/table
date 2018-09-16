@@ -4,6 +4,7 @@ import com.table.core.oauth2.OAuthService;
 import com.table.util.DaoStic;
 import com.table.util.IdGeneratorUtil;
 import org.apache.oltu.oauth2.as.issuer.MD5Generator;
+import org.apache.oltu.oauth2.as.issuer.OAuthIssuer;
 import org.apache.oltu.oauth2.as.issuer.OAuthIssuerImpl;
 import org.apache.oltu.oauth2.as.request.OAuthAuthzRequest;
 import org.apache.oltu.oauth2.as.response.OAuthASResponse;
@@ -117,22 +118,32 @@ public class ApiLoginController {
             return new ResponseEntity(headers, HttpStatus.valueOf(response.getResponseStatus()));
         }
     }
+
     //将code替换成token
     @RequestMapping(value = "codeToToken.json", method = RequestMethod.GET)
     public ResponseEntity codeToToken(@RequestParam String code) {
         OAuthResponse response = null;
 
-        if (!oAuthService.checkAuthCode(code)) {
-            try {
+        try {
+            if (!oAuthService.checkAuthCode(code)) {
                 response = OAuthASResponse.errorResponse(HttpServletResponse.SC_BAD_REQUEST)
                         .setError(OAuthError.TokenResponse.INVALID_GRANT)
                         .setErrorDescription("error grant code")
                         .buildJSONMessage();
-            } catch (OAuthSystemException e) {
-                e.printStackTrace();
             }
+
+            OAuthIssuer issuer = new OAuthIssuerImpl(new MD5Generator());
+            final String accessToken = issuer.accessToken();
+            oAuthService.addAccessToken(accessToken, oAuthService.getUsernameByAuthCode(code));
+
+            // 生成OAuth响应
+            response = OAuthASResponse.tokenResponse(HttpServletResponse.SC_OK)
+                    .setAccessToken(accessToken).setExpiresIn(String.valueOf(oAuthService.getExpireIn()))
+                    .buildJSONMessage();
+        } catch (OAuthSystemException e) {
+            e.printStackTrace();
         }
-        return new ResponseEntity<>(response != null ? response.getBody() : null, HttpStatus.valueOf(response != null ? response.getResponseStatus() : 0));
+        return new ResponseEntity<>(response.getBody(), HttpStatus.valueOf(response.getResponseStatus()));
     }
 
     @RequestMapping(value = "signIn.json", method = RequestMethod.GET)

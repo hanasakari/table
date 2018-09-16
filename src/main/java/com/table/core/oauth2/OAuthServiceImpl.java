@@ -15,7 +15,7 @@ public class OAuthServiceImpl implements OAuthService{
 
     @Override
     public void addAuthCode(String authCode, String username) {
-        redisUtil.add(authCode, username);
+        redisUtil.set(authCode, username);
     }
 
     @Override

@@ -6,6 +6,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 
@@ -43,5 +46,18 @@ public class RedisConfig  {
         jedisPoolConfig.setMaxWaitMillis(maxWaitMillis);
         JedisPool jedisPool = new JedisPool(jedisPoolConfig, host, port, timeout);
         return jedisPool;
+    }
+    @Bean
+    public RedisTemplate<String, String> redisTemplate(RedisConnectionFactory redisConnectionFactory) {
+        //防止序列化出错 不添加则序列化时会给你强行加byte前缀在key上导致错误
+        RedisTemplate<String, String> redis = new RedisTemplate<>();
+        redis.setConnectionFactory(redisConnectionFactory);
+        StringRedisSerializer stringRedisSerializer = new StringRedisSerializer();
+        redis.setKeySerializer(stringRedisSerializer);
+        redis.setValueSerializer(stringRedisSerializer);
+        redis.setHashKeySerializer(stringRedisSerializer);
+        redis.setHashValueSerializer(stringRedisSerializer);
+        redis.afterPropertiesSet();
+        return redis;
     }
 }
